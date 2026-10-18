@@ -1,22 +1,28 @@
 """Config flow for the UK Train Times integration."""
 
+from collections.abc import Mapping
 import logging
+from types import MappingProxyType
 from typing import Any
 
+import httpx2
 import probatio
 from rtt_io_api import RTTClient
-from rtt_io_api.exceptions import RTTAPIError
+from rtt_io_api.exceptions import RTTAPIError, RTTAuthenticationError, RTTRateLimitError
 
 from homeassistant.config_entries import (
     ConfigEntry,
+    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
+    ConfigSubentry,
     ConfigSubentryFlow,
     SubentryFlowResult,
 )
 from homeassistant.const import CONF_API_TOKEN, UnitOfTime
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import DOMAIN as HOMEASSISTANT_DOMAIN, HomeAssistant, callback
 from homeassistant.data_entry_flow import section
+from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -44,16 +50,21 @@ _LOGGER = logging.getLogger(__name__)
 STEP_API_TOKEN_SCHEMA = probatio.Schema({probatio.Required(CONF_API_TOKEN): str})
 
 
-async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> bool:
-    """Validate the user input contains a usable API token."""
-    client = RTTClient(refresh_token=data[CONF_API_TOKEN], base_url=RTT_API_BASE_URL)
-
+async def validate_input(hass: HomeAssistant, data: Mapping[str, Any]) -> None:
+    """Validate the API token by exchanging it for an access token."""
+    client = RTTClient(
+        refresh_token=data[CONF_API_TOKEN],
+        base_url=RTT_API_BASE_URL,
+        http_client=get_async_client(hass),
+    )
     try:
-        await client.get_access_token()  # Ensure we have a valid access token
-    except RTTAPIError as e:
-        raise InvalidAuth from e
-
-    return True
+        await client.get_access_token()
+    except RTTAuthenticationError as err:
+        raise InvalidAuth from err
+    except RTTRateLimitError as err:
+        raise RateLimited from err
+    except (RTTAPIError, httpx2.HTTPError) as err:
+        raise CannotConnect from err
 
 
 class ConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -61,25 +72,59 @@ class ConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    async def _async_validate_token(self, data: Mapping[str, Any]) -> str | None:
+        """Return an error key if the API token can't be used."""
+        try:
+            await validate_input(self.hass, data)
+        except InvalidAuth:
+            return "invalid_auth"
+        except RateLimited:
+            return "rate_limited"
+        except CannotConnect:
+            return "cannot_connect"
+        except Exception:
+            _LOGGER.exception("Unexpected exception")
+            return "unknown"
+        return None
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                await validate_input(self.hass, user_input)
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+            if error := await self._async_validate_token(user_input):
+                errors["base"] = error
             else:
                 await self.async_set_unique_id(user_input[CONF_API_TOKEN][:16])
-                return self.async_create_entry(title="UK Train Status", data=user_input)
+                self._abort_if_unique_id_configured()
+                return self.async_create_entry(title="UK Train Times", data=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_API_TOKEN_SCHEMA, errors=errors
+        )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle the API token being rejected."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for a new API token."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if error := await self._async_validate_token(user_input):
+                errors["base"] = error
+            else:
+                return self.async_update_and_abort(
+                    self._get_reauth_entry(), data_updates=user_input
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm", data_schema=STEP_API_TOKEN_SCHEMA, errors=errors
         )
 
     async def async_step_reconfigure(
@@ -88,13 +133,8 @@ class ConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle reconfiguration of the API token."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                await validate_input(self.hass, user_input)
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+            if error := await self._async_validate_token(user_input):
+                errors["base"] = error
             else:
                 await self.async_set_unique_id(user_input[CONF_API_TOKEN][:16])
                 return self.async_update_and_abort(
@@ -127,67 +167,82 @@ class UKTTRouteSubentryFlowHandler(ConfigSubentryFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         """Handle the initial step of the subentry flow."""
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            unique_id = _route_unique_id(user_input)
-            if self._unique_id_in_use(unique_id):
-                errors["base"] = "route_already_configured"
-            else:
-                return self.async_create_entry(
-                    title=_route_title(user_input),
-                    data=user_input,
-                    unique_id=unique_id,
-                )
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=await self._async_route_schema(),
-            errors=errors,
-        )
+        return await self._async_route_step("user", user_input)
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         """Handle reconfiguration of a route."""
-        subentry = self._get_reconfigure_subentry()
+        return await self._async_route_step("reconfigure", user_input)
+
+    async def _async_route_step(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ) -> SubentryFlowResult:
+        entry = self._get_entry()
+        if entry.state is not ConfigEntryState.LOADED:
+            return self.async_abort(reason="entry_not_loaded")
+
+        subentry = (
+            self._get_reconfigure_subentry() if step_id == "reconfigure" else None
+        )
         errors: dict[str, str] = {}
         if user_input is not None:
             unique_id = _route_unique_id(user_input)
-            if unique_id == subentry.unique_id:
-                return self.async_update_and_abort(
-                    self._get_entry(), subentry, data=user_input
-                )
-            if self._unique_id_in_use(unique_id):
+            if user_input["from_location"] == user_input["to_location"]:
+                errors["base"] = "same_station"
+            elif subentry is not None and unique_id == subentry.unique_id:
+                return self.async_update_and_abort(entry, subentry, data=user_input)
+            elif any(
+                other.unique_id == unique_id for other in entry.subentries.values()
+            ):
                 errors["base"] = "route_already_configured"
-            else:
-                self.hass.config_entries.async_remove_subentry(
-                    self._get_entry(), subentry.subentry_id
-                )
+            elif subentry is None:
                 return self.async_create_entry(
                     title=_route_title(user_input),
                     data=user_input,
                     unique_id=unique_id,
                 )
+            else:
+                # Different stations are a new route. A reconfigure flow can't
+                # create a subentry, so replace it directly.
+                self.hass.config_entries.async_add_subentry(
+                    entry,
+                    ConfigSubentry(
+                        data=MappingProxyType(user_input),
+                        subentry_type="route",
+                        title=_route_title(user_input),
+                        unique_id=unique_id,
+                    ),
+                )
+                self.hass.config_entries.async_remove_subentry(
+                    entry, subentry.subentry_id
+                )
+                return self.async_abort(
+                    reason="reconfigure_successful",
+                    translation_domain=HOMEASSISTANT_DOMAIN,
+                )
 
-        return self.async_show_form(
-            step_id="reconfigure",
-            data_schema=self.add_suggested_values_to_schema(
-                await self._async_route_schema(), subentry.data
-            ),
-            errors=errors,
-        )
+        try:
+            schema = await self._async_route_schema(entry)
+        except RateLimited:
+            return self.async_abort(reason="rate_limited")
+        except CannotConnect:
+            return self.async_abort(reason="cannot_connect")
+        if subentry is not None:
+            schema = self.add_suggested_values_to_schema(schema, subentry.data)
+        return self.async_show_form(step_id=step_id, data_schema=schema, errors=errors)
 
-    def _unique_id_in_use(self, unique_id: str) -> bool:
-        return any(
-            other.unique_id == unique_id
-            for other in self._get_entry().subentries.values()
-        )
-
-    async def _async_route_schema(self) -> probatio.Schema:
-        client = self._get_entry().runtime_data.client
+    async def _async_route_schema(self, entry: ConfigEntry) -> probatio.Schema:
+        try:
+            stops = await entry.runtime_data.client.get_stops()
+        except RTTRateLimitError as err:
+            raise RateLimited from err
+        except (RTTAPIError, httpx2.HTTPError) as err:
+            raise CannotConnect from err
         stop_options = [
-            SelectOptionDict(value=s.short_code, label=s.description)
-            for s in await client.get_stops()
+            SelectOptionDict(value=stop.short_code, label=stop.description)
+            for stop in stops
+            if stop.short_code
         ]
         return probatio.Schema(
             {
@@ -239,6 +294,14 @@ def _route_unique_id(data: dict[str, Any]) -> str:
 
 def _route_title(data: dict[str, Any]) -> str:
     return f"Route from {data['from_location']} to {data['to_location']}"
+
+
+class CannotConnect(Exception):
+    """Error to indicate we cannot connect."""
+
+
+class RateLimited(Exception):
+    """Error to indicate the API rate limit was hit."""
 
 
 class InvalidAuth(Exception):

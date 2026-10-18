@@ -1,150 +1,164 @@
 {
-    "config": {
-        "abort": {
-            "reconfigure_successful": "Reconfiguration was successful"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
-        },
-        "step": {
-            "reconfigure": {
-                "data": {
-                    "api_token": "API token"
-                },
-                "data_description": {
-                    "api_token": "The long-life refresh token issued by Realtime Trains."
-                },
-                "description": "Enter a new refresh token for your Realtime Trains API account.",
-                "title": "Update the Realtime Trains API token"
-            },
-            "user": {
-                "data": {
-                    "api_token": "API token"
-                },
-                "data_description": {
-                    "api_token": "The long-life refresh token issued by Realtime Trains."
-                },
-                "description": "Enter the refresh token for your Realtime Trains API account.",
-                "title": "Set up UK Train Times"
-            }
-        }
+  "config": {
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "rate_limited": "Realtime Trains is limiting requests. Try again in a few minutes.",
+      "unknown": "Unexpected error"
     },
-    "config_subentries": {
-        "route": {
-            "abort": {
-                "already_configured": "Device is already configured",
-                "reconfigure_successful": "Reconfiguration was successful"
-            },
-            "entry_type": "Route",
-            "error": {
-                "route_already_configured": "This route is already configured"
-            },
-            "flow_title": "Route",
-            "initiate_flow": {
-                "user": "Add a route to monitor"
-            },
-            "step": {
-                "reconfigure": {
-                    "data": {
-                        "from_location": "From station",
-                        "time_offset": "Minimum minutes until departure",
-                        "to_location": "To station"
-                    },
-                    "data_description": {
-                        "from_location": "The station the train departs from.",
-                        "time_offset": "Ignore trains departing sooner than this many minutes from now, for example the time it takes you to walk to the station.",
-                        "to_location": "The station the train must call at."
-                    },
-                    "description": "Choose the stations to monitor and when you are interested in trains.",
-                    "sections": {
-                        "hours_of_interest": {
-                            "data": {
-                                "end_time": "End time",
-                                "start_time": "Start time"
-                            },
-                            "data_description": {
-                                "end_time": "Stop looking for trains at this time each day. Defaults to midnight.",
-                                "start_time": "Start looking for trains from this time each day. Defaults to 06:00."
-                            },
-                            "description": "Only look for services between these times each day to save on API requests. The number of updates is limited outside of these hours. Use the the same start and end time to cover the whole day.",
-                            "name": "Hours of interest"
-                        }
-                    },
-                    "title": "Update the route"
-                },
-                "user": {
-                    "data": {
-                        "from_location": "From station",
-                        "time_offset": "Minimum minutes until departure",
-                        "to_location": "To station"
-                    },
-                    "data_description": {
-                        "from_location": "The station the train departs from.",
-                        "time_offset": "Ignore trains departing sooner than this many minutes from now, for example the time it takes you to walk to the station.",
-                        "to_location": "The station the train must call at."
-                    },
-                    "description": "Choose the stations to monitor and when you are interested in trains.",
-                    "sections": {
-                        "hours_of_interest": {
-                            "data": {
-                                "end_time": "End time",
-                                "start_time": "Start time"
-                            },
-                            "data_description": {
-                                "end_time": "Stop looking for trains at this time each day. Defaults to midnight.",
-                                "start_time": "Start looking for trains from this time each day. Defaults to 06:00."
-                            },
-                            "description": "Only look for services between these times each day to save on API requests. The number of updates is limited outside of these hours. Use the the same start and end time to cover the whole day.",
-                            "name": "Hours of interest"
-                        }
-                    },
-                    "title": "Add a route to monitor"
-                }
-            }
-        }
-    },
-    "device": {
-        "route": {
-            "name": "Next train from {from_location} to {to_location}"
-        }
-    },
-    "entity": {
-        "binary_sensor": {
-            "delayed": {
-                "name": "Delayed"
-            }
+    "step": {
+      "reauth_confirm": {
+        "data": {
+          "api_token": "API token"
         },
-        "sensor": {
-            "delay": {
-                "name": "Delay"
-            },
-            "expected_departure": {
-                "name": "Expected departure"
-            },
-            "scheduled_departure": {
-                "name": "Scheduled departure"
-            },
-            "services_next_hour": {
-                "name": "Number of services in the next hour",
-                "state_attributes": {
-                    "services": {
-                        "name": "Services"
-                    }
-                }
-            }
-        }
-    },
-    "exceptions": {
-        "invalid_auth": {
-            "message": "Your Realtime Trains API token was rejected. Update it using the Reconfigure option of the integration."
+        "data_description": {
+          "api_token": "The long-life refresh token issued by Realtime Trains."
         },
-        "rate_limit_exceeded": {
-            "message": "Realtime Trains is limiting requests from your account. Try using the hours of interest option to reduce the number of requests made by this integration."
+        "description": "Your Realtime Trains API token was rejected. Enter a new refresh token for your account.",
+        "title": "Re-authenticate with Realtime Trains"
+      },
+      "reconfigure": {
+        "data": {
+          "api_token": "API token"
         },
-        "update_failed": {
-            "message": "Could not get train times from Realtime Trains: {error}"
-        }
+        "data_description": {
+          "api_token": "The long-life refresh token issued by Realtime Trains."
+        },
+        "description": "Enter a new refresh token for your Realtime Trains API account.",
+        "title": "Update the Realtime Trains API token"
+      },
+      "user": {
+        "data": {
+          "api_token": "API token"
+        },
+        "data_description": {
+          "api_token": "The long-life refresh token issued by Realtime Trains."
+        },
+        "description": "Enter the refresh token for your Realtime Trains API account.",
+        "title": "Set up UK Train Times"
+      }
     }
+  },
+  "config_subentries": {
+    "route": {
+      "abort": {
+        "already_configured": "Device is already configured",
+        "cannot_connect": "Could not get the list of stations from Realtime Trains. Try again later.",
+        "entry_not_loaded": "UK Train Times isn't loaded. Check the integration is working, then try again.",
+        "rate_limited": "Realtime Trains is limiting requests. Try again in a few minutes."
+      },
+      "entry_type": "Route",
+      "error": {
+        "route_already_configured": "This route is already configured",
+        "same_station": "The from and to stations must be different."
+      },
+      "flow_title": "Route",
+      "initiate_flow": {
+        "user": "Add a route to monitor"
+      },
+      "step": {
+        "reconfigure": {
+          "data": {
+            "from_location": "From station",
+            "time_offset": "Minimum minutes until departure",
+            "to_location": "To station"
+          },
+          "data_description": {
+            "from_location": "The station the train departs from.",
+            "time_offset": "Ignore trains departing sooner than this many minutes from now, for example the time it takes you to walk to the station.",
+            "to_location": "The station the train must call at."
+          },
+          "description": "Choose the stations to monitor and when you are interested in trains.",
+          "sections": {
+            "hours_of_interest": {
+              "data": {
+                "end_time": "End time",
+                "start_time": "Start time"
+              },
+              "data_description": {
+                "end_time": "Stop looking for trains at this time each day. Defaults to midnight.",
+                "start_time": "Start looking for trains from this time each day. Defaults to 06:00."
+              },
+              "description": "Only look for services between these times each day to save on API requests. The number of updates is limited outside of these hours. Use the the same start and end time to cover the whole day.",
+              "name": "Hours of interest"
+            }
+          },
+          "title": "Update the route"
+        },
+        "user": {
+          "data": {
+            "from_location": "From station",
+            "time_offset": "Minimum minutes until departure",
+            "to_location": "To station"
+          },
+          "data_description": {
+            "from_location": "The station the train departs from.",
+            "time_offset": "Ignore trains departing sooner than this many minutes from now, for example the time it takes you to walk to the station.",
+            "to_location": "The station the train must call at."
+          },
+          "description": "Choose the stations to monitor and when you are interested in trains.",
+          "sections": {
+            "hours_of_interest": {
+              "data": {
+                "end_time": "End time",
+                "start_time": "Start time"
+              },
+              "data_description": {
+                "end_time": "Stop looking for trains at this time each day. Defaults to midnight.",
+                "start_time": "Start looking for trains from this time each day. Defaults to 06:00."
+              },
+              "description": "Only look for services between these times each day to save on API requests. The number of updates is limited outside of these hours. Use the the same start and end time to cover the whole day.",
+              "name": "Hours of interest"
+            }
+          },
+          "title": "Add a route to monitor"
+        }
+      }
+    }
+  },
+  "device": {
+    "route": {
+      "name": "Next train from {from_location} to {to_location}"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "delayed": {
+        "name": "Delayed"
+      }
+    },
+    "sensor": {
+      "delay": {
+        "name": "Delay"
+      },
+      "expected_departure": {
+        "name": "Expected departure"
+      },
+      "scheduled_departure": {
+        "name": "Scheduled departure"
+      },
+      "services_next_hour": {
+        "name": "Number of services in the next hour",
+        "state_attributes": {
+          "services": {
+            "name": "Services"
+          }
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "invalid_auth": {
+      "message": "Your Realtime Trains API token was rejected. Re-authenticate to enter a new one."
+    },
+    "rate_limit_exceeded": {
+      "message": "Realtime Trains is limiting requests from your account. Try using the hours of interest option to reduce the number of requests made by this integration."
+    },
+    "unknown_station": {
+      "message": "Station {station} is no longer available from Realtime Trains. Reconfigure the route."
+    },
+    "update_failed": {
+      "message": "Could not get train times from Realtime Trains: {error}"
+    }
+  }
 }

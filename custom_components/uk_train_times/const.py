@@ -6,7 +6,6 @@ DOMAIN = "uk_train_times"
 
 # RTT API Configuration
 RTT_API_BASE_URL = "https://data.rtt.io"
-RTT_API_VERSION = "v1"
 
 MAX_TIME_OFFSET = 120
 

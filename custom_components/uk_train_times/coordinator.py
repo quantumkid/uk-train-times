@@ -128,13 +128,23 @@ class UKTTCoordinator(DataUpdateCoordinator[dict[str, list[Service]]]):
             raise _to_ha_error(err) from err
         self._stops = {stop.short_code: stop for stop in stops if stop.short_code}
 
+    def _stop(self, short_code: str) -> Stop:
+        """Return the stop for a station code."""
+        if (stop := self._stops.get(short_code)) is None:
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="unknown_station",
+                translation_placeholders={"station": short_code},
+            )
+        return stop
+
     def _next_update_interval(self, data: dict[str, list[Service]] | None) -> timedelta:
         """Return the interval to the next update.
 
         Slower while the next service is far away. Never later than the start of the
         next hours of interest of a route outside them.
         """
-        now = dt_util.now()
+        now = dt_util.utcnow()
         interval = self._interval_for_services(now, data)
         if starts := [start for start in self._next_starts.values() if start > now]:
             interval = min(interval, min(starts) - now)
@@ -175,24 +185,30 @@ class UKTTCoordinator(DataUpdateCoordinator[dict[str, list[Service]]]):
         window = MAX_SERVICES_WINDOW
         next_start: datetime | None = None
         hours = parse_hours(route)
-        now = dt_util.now()
-        from_time = now + timedelta(minutes=offset)
+        now = dt_util.utcnow()
+        from_time = dt_util.as_local(now + timedelta(minutes=offset))
         period_start, period_end, inside = find_period(from_time, *hours)
+        # Subtract in UTC: datetimes sharing a timezone subtract by wall clock,
+        # which is an hour out across a clock change.
         if inside:
-            window = min(window, period_end - from_time)
+            window = min(window, dt_util.as_utc(period_end) - dt_util.as_utc(from_time))
         else:
             if self._next_starts.get(subentry_id) == period_start and (
                 self.data and subentry_id in self.data
             ):
                 return self.data[subentry_id]
             next_start = period_start
-            offset = math.ceil((period_start - now).total_seconds() / 60)
-            window = min(window, period_end - period_start)
+            offset = math.ceil(
+                (dt_util.as_utc(period_start) - now).total_seconds() / 60
+            )
+            window = min(
+                window, dt_util.as_utc(period_end) - dt_util.as_utc(period_start)
+            )
 
         try:
             services = await self.client.get_services(
-                self._stops[route["from_location"]],
-                self._stops[route["to_location"]],
+                self._stop(route["from_location"]),
+                self._stop(route["to_location"]),
                 window=window,
                 time_offset=offset,
             )

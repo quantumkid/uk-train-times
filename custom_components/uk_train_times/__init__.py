@@ -1,19 +1,16 @@
 """The UK Train Times integration."""
 
-import logging
-
 from rtt_io_api import RTTClient
 
 from homeassistant.const import CONF_API_TOKEN, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import AnyDeviceEntry
+from homeassistant.helpers.httpx_client import get_async_client
 
 from .const import DOMAIN, RTT_API_BASE_URL
 from .coordinator import UKTTConfigEntry, UKTTCoordinator
 
 _PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -22,7 +19,9 @@ async def async_setup_entry(
 ) -> bool:
     """Set up UK Train Times from a config entry."""
     client = RTTClient(
-        refresh_token=entry.data[CONF_API_TOKEN], base_url=RTT_API_BASE_URL
+        refresh_token=entry.data[CONF_API_TOKEN],
+        base_url=RTT_API_BASE_URL,
+        http_client=get_async_client(hass),
     )
     coordinator = UKTTCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
