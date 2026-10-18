@@ -1,0 +1,26 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "delayed": {
+        "default": "mdi:clock-check-outline",
+        "state": {
+          "on": "mdi:clock-alert-outline"
+        }
+      }
+    },
+    "sensor": {
+      "delay": {
+        "default": "mdi:timer-alert-outline"
+      },
+      "expected_departure": {
+        "default": "mdi:train"
+      },
+      "scheduled_departure": {
+        "default": "mdi:calendar-clock"
+      },
+      "services_next_hour": {
+        "default": "mdi:format-list-numbered"
+      }
+    }
+  }
+}
