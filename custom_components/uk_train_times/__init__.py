@@ -35,9 +35,9 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: UKTTConfigEntry) -> None:
+async def async_unload_entry(hass: HomeAssistant, entry: UKTTConfigEntry) -> bool:
     """Unload a config entry."""
-    await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
+    return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
 
 
 async def async_remove_config_entry_device(
