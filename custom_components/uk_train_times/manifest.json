@@ -1,7 +1,6 @@
 {
   "domain": "uk_train_times",
   "name": "UK Train Times",
-  "version": "0.1.2",
   "codeowners": [
     "@quantumkid"
   ],
@@ -12,7 +11,8 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/quantumkid/uk-train-times/issues",
   "requirements": [
-    "rtt-io-api @ https://github.com/quantumkid/rtt_io_api/archive/6d58a7a11fb7979c2ab721eb01cd405d6a6e1e1f.zip"
+    "rtt-io-api@https://github.com/quantumkid/rtt_io_api/archive/6d58a7a11fb7979c2ab721eb01cd405d6a6e1e1f.zip"
   ],
-  "single_config_entry": true
+  "single_config_entry": true,
+  "version": "0.1.2"
 }
